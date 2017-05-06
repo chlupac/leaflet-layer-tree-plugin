@@ -20,6 +20,7 @@
 	<link rel="stylesheet" href="../src/leaflet-layer-tree-control.css"/>
 	<script type="text/javascript" src="../src/leaflet-layer-tree-control.js"></script>
 	<script type="text/javascript" src="../src/leaflet-layer-tree-control-wfs-zoom.js"></script>
+	<script type="text/javascript" src="../src/leaflet-layer-tree-control-wfs-select.js"></script>
 
 </head>
 <body>
@@ -285,7 +286,8 @@
 		layerBuilders: layerBuilders,
 		featureBuilders: {
 			WFS: {
-				zoom: L.Control.LayerTreeControl.WFSZoomFeature
+				zoom: L.Control.LayerTreeControl.WFSZoomFeature,
+				select: L.Control.LayerTreeControl.WFSSelectFeature
 			}
 		}
 	}).addTo(map);

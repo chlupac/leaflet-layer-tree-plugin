@@ -224,73 +224,18 @@ L.Control.LayerTreeControl = L.Control.extend({
 });
 
 function LeafletLayerTreeCheckboxWrapper(className) {
-	var INCLUDE_NONE = "none";
-	var INCLUDE_SELF = "self";
-	var INCLUDE_CHILDREN = "including-children";
 	this.className = className;
-	var childrenCheckboxes = {};
-	var layers = {};
-	var layerSettings = {};
 
 	return {
 		prepare: function prepare(layerId, parentId,
 								  parentLeaf, leafTitle, leaf,
 								  me, orderManager) {
 
-			function resetIncludeChildrenForParent(elementId) {
-				var elem = document.getElementById(elementId);
-				if (elem && layers.hasOwnProperty(elementId)) {
-					var parentId = layers[elementId].parentId;
-					var parent = document.getElementById(parentId);
-					if (parent) {
-						var parentState = readCheckboxState0(parent);
-						if (parentState == INCLUDE_CHILDREN) {
-							updateCheckboxState0(parent, INCLUDE_SELF);
-							resetIncludeChildrenForParent(parentId);
-						}
-					}
-				}
-			}
-
-			function readCheckboxState0(element) {
-				return element.value;
-			}
-
-			function updateCheckboxState0(checkbox, state) {
-				checkbox.value = state;
-				checkbox.className = className + ".leaflet-layer-tree-control-select-layers "
-					+ className + "-select-layers-" + state;
-			}
-
-			function updateCheckboxState(elementId, state) {
-				var elem = document.getElementById(elementId);
-				if (elem) {
-					var nextState = calcAvailableState0(elementId, state);
-					updateCheckboxState0(elem, nextState);
-				}
-			}
-
 			function toggleLayerMULTIPLE(elementId, state) {
 				if (elementId) {
-					// add or remove currently selected layer
-					if (state == INCLUDE_CHILDREN) {
-						var childIds = childrenCheckboxes[elementId];
-						for (var i in childIds) {
-							var childId = childIds[i];
-							toggleLayerMULTIPLE(childId, state);
-							updateCheckboxState(childId, state);
-						}
-						me.addLayer(layerSettings[elementId], elementId);
-					} else if (state == INCLUDE_SELF) {
+					if (state) {
 						me.addLayer(leaf, elementId);
-						// updateCheckboxState(elementId, INCLUDE_SELF);
 					} else {
-						var childIds = childrenCheckboxes[elementId];
-						for (var i in childIds) {
-							var childId = childIds[i];
-							toggleLayerMULTIPLE(childId, state);
-							updateCheckboxState(childId, state);
-						}
 						me.removeLayer(elementId);
 					}
 					orderManager.fillOrders();
@@ -299,47 +244,25 @@ function LeafletLayerTreeCheckboxWrapper(className) {
 
 			var parentLeafCode = parentLeaf.code;
 
-			var checkbox = L.DomUtil.create("div", "", leafTitle);
+			var container = L.DomUtil.create("div", "", leafTitle);
+			container.className = className + " leaflet-layer-tree-control-select-control";
+			container.id = layerId;
+			container.parentId = parentId;
+
+			var checkbox = L.DomUtil.create("input", "", container);
 			checkbox.name = parentLeafCode;
-			checkbox.id = layerId;
-			checkbox.parentId = parentId;
-			checkbox.className = className + ".leaflet-layer-tree-control-select-layers "
-				+ className + "-select-layers-" + INCLUDE_NONE;
-			checkbox.value = INCLUDE_NONE;
+			checkbox.type = "checkbox";
+			checkbox.checked = false;
 
 			var label = L.DomUtil.create("label", "", leafTitle);
 			var labelText = L.DomUtil.create("span", "", label);
 			labelText.innerHTML = leaf.name;
 
-			function calcAvailableState0(layerId, state) {
-				var childrenCheckboxesList = childrenCheckboxes[layerId];
-				if (state == INCLUDE_CHILDREN && (childrenCheckboxesList == undefined || childrenCheckboxesList.length == 0)) {
-					return INCLUDE_SELF;
-				}
-				return state;
-			}
-
-			function advanceState0(layerId, currentState) {
-				var childrenCheckboxesList = childrenCheckboxes[layerId];
-				var nextState = INCLUDE_NONE;
-				if (currentState == INCLUDE_NONE) {
-					nextState = INCLUDE_SELF;
-				} else if (childrenCheckboxesList != undefined && childrenCheckboxesList.length > 0 &&
-					currentState == INCLUDE_SELF) {
-					nextState = INCLUDE_CHILDREN;
-				}
-				return nextState;
-			}
-
 			function advanceState(event) {
 				var elem = event.srcElement != undefined ? event.srcElement : this;
-				var checkbox = elem.parentElement.parentElement.getElementsByTagName("div")[0];
-				var elementId = checkbox.id;
-				var currentState = checkbox.value;
-				var nextState = advanceState0(elementId, currentState);
-				updateCheckboxState0(checkbox, nextState);
-				resetIncludeChildrenForParent(elementId);
-				toggleLayerMULTIPLE(elementId, nextState, leafTitle);
+				var checkbox = elem.parentElement.parentElement.getElementsByTagName("input")[0];
+				var elementId = checkbox.parentElement.id;
+				toggleLayerMULTIPLE(elementId, checkbox.checked, leafTitle);
 			}
 
 			L.DomEvent.on(checkbox, "click", function (event) {
@@ -349,26 +272,11 @@ function LeafletLayerTreeCheckboxWrapper(className) {
 				advanceState.call(this, event);
 			});
 			if (leaf.selectedByDefault) {
-				updateCheckboxState0(checkbox, INCLUDE_SELF);
-				toggleLayerMULTIPLE(layerId, checkbox.value, leafTitle);
+				checkbox.checked = true;
+				toggleLayerMULTIPLE(layerId, checkbox.checked, leafTitle);
 			}
 
 			return parentLeafCode;
-		},
-		clearChildCheckboxCounter: function () {
-			childrenCheckboxes = {};
-			layerSettings = {};
-			layers = {};
-		},
-		incrementChildrenCheckbox: function (parentId, childId, leaf) {
-			if (!childrenCheckboxes.hasOwnProperty(parentId)) {
-				childrenCheckboxes[parentId] = new Array();
-			}
-			childrenCheckboxes[parentId].push(childId);
-			layerSettings[childId] = leaf;
-			layers[childId] = {
-				parentId: parentId
-			};
 		}
 	}
 }
@@ -376,6 +284,7 @@ function LeafletLayerTreeCheckboxWrapper(className) {
 function LeafletLayerTreeLeafTraverser(className, childrenVisibilityToggler) {
 	this.className = className;
 	var checkboxWrapper = LeafletLayerTreeCheckboxWrapper(className);
+	var context = {};
 	return {
 		traverseLeaf: function (parentLeaf, parentContainer, leaf, parentId, order, me, orderManager) {
 			var leafContainer = L.DomUtil.create("div", className + "-leaf", parentContainer);
@@ -444,7 +353,6 @@ function LeafletLayerTreeLeafTraverser(className, childrenVisibilityToggler) {
 							parentLeaf, leafTitle, leaf,
 							me, orderManager
 						);
-						checkboxWrapper.incrementChildrenCheckbox(parentId, layerId, leaf);
 					}
 						break;
 				}
@@ -452,7 +360,18 @@ function LeafletLayerTreeLeafTraverser(className, childrenVisibilityToggler) {
 					var featureBuilders = me.options.featureBuilders[leaf.serviceType];
 					for (var i in featureBuilders) {
 						var featureBuilder = featureBuilders[i];
-						featureBuilder(leafTitle, leaf, me.options, me._map);
+						featureBuilder({
+							leafTitle: leafTitle,
+							leaf: leaf,
+							options: me.options,
+							map: me._map,
+							layerId: layerId,
+							parentId: parentId,
+							parentLeaf: parentLeaf,
+							me: me,
+							orderManager: orderManager,
+							context: context
+						});
 					}
 				}
 				var leafContent = L.DomUtil.create("div", className + "-leaf-content", leafContainer);
@@ -587,8 +506,7 @@ function LeafletLayerTreeOrderManager(className, orderContainer, orderToggleCont
 				var sourceId = elem.layerId;
 				var targetId = event.dataTransfer.getData("text/plain");
 				var sourceIndex = me._getLayerIndex(sourceId);
-				//var targetIndex = me._getLayerIndex(targetId);
-				if (sourceIndex != undefined/* && targetIndex != undefined && sourceIndex != targetIndex*/) {
+				if (sourceIndex != undefined) {
 					event.preventDefault();
 				}
 			};

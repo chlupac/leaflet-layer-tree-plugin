@@ -1,4 +1,4 @@
-L.Control.LayerTreeControl.WFSZoomFeature = function (leafTitle, layerSettings, options, map) {
+L.Control.LayerTreeControl.WFSZoomFeature = function (params) {
 	var feature = {
 		fitWfsBounds: function (layerSettings, map) {
 			var wfsUrl = layerSettings.params.url + L.Util.getParamString({request: "GetCapabilities"});
@@ -63,7 +63,11 @@ L.Control.LayerTreeControl.WFSZoomFeature = function (leafTitle, layerSettings, 
 				}
 			});
 		},
-		addWfsZoomToFeatureButton: function (leafTitle, layerSettings) {
+		addWfsZoomToFeatureButton: function (params) {
+			var leafTitle = params.leafTitle;
+			var layerSettings = params.leaf;
+			var options = params.options;
+			var map = params.map;
 			var elems = leafTitle.getElementsByClassName(options.className + "-leaf-wfs-zoom-to");
 			if (elems.length == 0) {
 				var handlerButton = L.DomUtil.create("span", options.className + "-leaf-wfs-zoom-to", leafTitle);
@@ -99,5 +103,5 @@ L.Control.LayerTreeControl.WFSZoomFeature = function (leafTitle, layerSettings, 
 			}
 		}
 	}
-	feature.addWfsZoomToFeatureButton(leafTitle, layerSettings);
+	feature.addWfsZoomToFeatureButton(params);
 };
